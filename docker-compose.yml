@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: gsmaxall_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: gsmaxall
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # Redis Cache & Message Queue
+  redis:
+    image: redis:7-alpine
+    container_name: gsmaxall_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # Qdrant Vector Database
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: gsmaxall_qdrant
+    restart: always
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  # Standalone WebSocket & Shell Runner Server
+  runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.runner
+    container_name: gsmaxall_runner
+    restart: always
+    environment:
+      - PORT=3001
+      - RUNNER_SECRET=gsmaxall-runner-super-secret-key
+      - RUNNER_ALLOW_REAL_SHELL=true
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/gsmaxall?schema=public
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./workspace:/app/workspace
+    depends_on:
+      - db
+      - redis
+
+  # Next.js 15 Frontend
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gsmaxall_app
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/gsmaxall?schema=public
+      - REDIS_URL=redis://redis:6379
+      - QDRANT_URL=http://qdrant:6333
+      - NEXT_PUBLIC_RUNNER_WS_URL=ws://localhost:3001
+      - NEXTAUTH_URL=http://localhost:3000
+      - NEXTAUTH_SECRET=gsmaxall-auth-secret-key-32-chars-at-least-longer
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+      - redis
+      - qdrant
+      - runner
+
+volumes:
+  postgres_data:
+  redis_data:
+  qdrant_data:

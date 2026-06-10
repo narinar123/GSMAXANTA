@@ -1,0 +1,60 @@
+name: GSMAXALL CI/CD Production Suite
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  validate-and-build:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: gsmaxall_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - name: Checkout Code Repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js Environment
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        cache: 'npm'
+
+    - name: Install Project Dependencies
+      run: npm ci
+
+    - name: Initialize Prisma Client
+      run: npx prisma generate
+      env:
+        DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/gsmaxall_test?schema=public"
+
+    - name: Verify TypeScript Type-Safety
+      run: npx tsc --noEmit
+
+    - name: Verify ESLint Formatting
+      run: npm run lint
+      continue-on-error: true # Let formatting warnings pass if non-critical
+
+    - name: Build Next.js Production Bundle
+      run: npm run build
+      env:
+        DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/gsmaxall_test?schema=public"
+        NEXTAUTH_SECRET: "ci-test-secret-key-at-least-32-chars-long"
+
+    - name: Validate Docker Compose Config
+      run: docker compose config

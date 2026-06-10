@@ -1,0 +1,132 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum Tier {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+model User {
+  id           String        @id @default(uuid())
+  email        String        @unique
+  passwordHash String
+  name         String?
+  avatar       String?
+  role         Role          @default(USER)
+  tier         Tier          @default(FREE)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  projects     Project[]
+  chatMessages ChatMessage[]
+  workflows    Workflow[]
+  documents    Document[]
+  notes        Note[]
+  settings     Settings?
+}
+
+model Settings {
+  id         String   @id @default(uuid())
+  userId     String   @unique
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  theme      String   @default("dark")
+  openaiKey  String?
+  claudeKey  String?
+  geminiKey  String?
+  deepseekKey String?
+  grokKey    String?
+  ollamaUrl  String?
+  updatedAt  DateTime @updatedAt
+}
+
+model Project {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  files       File[]
+}
+
+model File {
+  id          String   @id @default(uuid())
+  name        String
+  path        String
+  content     String?  @db.Text
+  isDirectory Boolean  @default(false)
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([projectId, path])
+}
+
+model ChatMessage {
+  id          String   @id @default(uuid())
+  sessionUuid String
+  role        String   // "user" | "assistant" | "system"
+  content     String   @db.Text
+  attachments String?  // JSON string array of file attachment objects
+  modelUsed   String?
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+}
+
+model Workflow {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  nodes       String   @db.Text // JSON representation of nodes
+  edges       String   @db.Text // JSON representation of edges
+  isPublished Boolean  @default(false)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Document {
+  id        String   @id @default(uuid())
+  name      String
+  path      String
+  type      String
+  size      Int
+  qdrantId  String?  // ID in vector database
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Note {
+  id        String   @id @default(uuid())
+  title     String
+  content   String   @db.Text
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SystemAnalytics {
+  id        String   @id @default(uuid())
+  timestamp DateTime @default(now())
+  metric    String   // e.g. "api_calls", "active_users", "token_usage"
+  value     Float
+  details   String?  // JSON context
+}
