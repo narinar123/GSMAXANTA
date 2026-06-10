@@ -1,3 +1,0 @@
-module.exports=[18741,(a,b,c)=>{let{createClientModuleProxy:d}=a.r(6278);a.n(d("[project]/Desktop/GSMAXANTA/node_modules/next/dist/client/components/builtin/global-error.js <module evaluation>"))},99724,(a,b,c)=>{let{createClientModuleProxy:d}=a.r(6278);a.n(d("[project]/Desktop/GSMAXANTA/node_modules/next/dist/client/components/builtin/global-error.js"))},93557,a=>{"use strict";a.i(18741);var b=a.i(99724);a.n(b)},57960,a=>{a.n(a.i(93557))}];
-
-//# sourceMappingURL=1bv__next_dist_client_components_builtin_global-error_13na4e3.js.map
